@@ -44,7 +44,6 @@ jobs:
           cat << 'EOF' > android/app/src/main/res/values/strings_google.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <!-- EKHANE APNAR WEB CLIENT ID-TA BOSIYE DIN -->
               <string name="server_client_id">846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com</string>
           </resources>
           EOF
@@ -90,6 +89,30 @@ jobs:
           find node_modules -type f -name "build.gradle" -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
           find android -type f -name "build.gradle" -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
 
+      - name: Hard-Bind Keystore into Gradle Mainframe
+        run: |
+          cat << 'EOF' >> android/app/build.gradle
+
+          android {
+              signingConfigs {
+                  secureSign {
+                      storeFile file("../../sagar.keystore")
+                      storePassword "sagar123"
+                      keyAlias "securealias"
+                      keyPassword "sagar123"
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.secureSign
+                  }
+                  release {
+                      signingConfig signingConfigs.secureSign
+                  }
+              }
+          }
+          EOF
+
       - name: Inject Native Anti-Screenshot (FLAG_SECURE)
         run: |
           cat << 'EOF' > android/app/src/main/java/com/sagar/secureconnect/MainActivity.java
@@ -106,17 +129,11 @@ jobs:
           }
           EOF
 
-      - name: Display SHA-1 Fingerprint Safely
-        run: |
-          echo "=== COPY THIS EXACT SHA-1 TO YOUR FIREBASE CONSOLE ==="
-          keytool -list -v -keystore sagar.keystore -alias securealias -storepass sagar123 | grep -i sha1 || true
-          echo "========================================================"
-
-      - name: Compile Secure Release APK with Fixed Local Keystore
+      - name: Compile Secure Release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/sagar.keystore -Pandroid.injected.signing.store.password=sagar123 -Pandroid.injected.signing.key.alias=securealias -Pandroid.injected.signing.key.password=sagar123
+          ./gradlew assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk ../SecureConnectPro.apk
 
       - name: Upload Signed Production App
