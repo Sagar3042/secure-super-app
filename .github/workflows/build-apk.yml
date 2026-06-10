@@ -44,7 +44,8 @@ jobs:
           cat << 'EOF' > android/app/src/main/res/values/strings_google.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="server_client_id">APNAR_WEB_CLIENT_ID_EKHANE_DIN</string>
+              <!-- EKHANE APNAR WEB CLIENT ID-TA BOSIYE DIN -->
+              <string name="server_client_id">846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com</string>
           </resources>
           EOF
 
@@ -84,6 +85,11 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Fix Dead JCenter Repository Issue
+        run: |
+          find node_modules -type f -name "build.gradle" -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
+          find android -type f -name "build.gradle" -exec sed -i 's/jcenter()/mavenCentral()/g' {} + || true
+
       - name: Inject Native Anti-Screenshot (FLAG_SECURE)
         run: |
           cat << 'EOF' > android/app/src/main/java/com/sagar/secureconnect/MainActivity.java
@@ -118,4 +124,3 @@ jobs:
         with:
           name: SecureConnect-Pro-APK
           path: SecureConnectPro.apk
-
