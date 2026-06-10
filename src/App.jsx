@@ -1,4 +1,3 @@
-```react
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -24,7 +23,6 @@ const userFirebaseConfig = {
   appId: "1:846601072766:android:e30d30fdbc25444b2ba82f"
 };
 
-// Canvas fallback config (for live preview compatibility)
 const canvasConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
 const app = initializeApp(canvasConfig);
 const auth = getAuth(app);
@@ -35,21 +33,19 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-super-app';
 const IMAGEKIT_PUBLIC_KEY = "public_GvmX1rd4tynHWZCdysu98pZ9V2Q=";
 const IMAGEKIT_PRIVATE_KEY = "private_MLBrEOewf8kbdLwt9QKiKB6Xd10=";
 
-// ImageKit Upload Function
 const uploadToImageKit = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("fileName", file.name || `image_${Date.now()}.jpg`);
+  formData.append("fileName", file.name || ("image_" + Date.now() + ".jpg"));
   formData.append("publicKey", IMAGEKIT_PUBLIC_KEY);
 
-  // Using Basic Auth with Private Key for direct frontend upload
   const encodedKey = btoa(IMAGEKIT_PRIVATE_KEY + ":"); 
   
   try {
     const response = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${encodedKey}`
+        "Authorization": "Basic " + encodedKey
       },
       body: formData
     });
@@ -75,7 +71,6 @@ export default function SuperApp() {
   const [usersList, setUsersList] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
-  // --- Auth Flow ---
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -108,11 +103,9 @@ export default function SuperApp() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch Users & Notifications
   useEffect(() => {
     if (!user || currentScreen === 'setup_profile') return;
     
-    // Users Listener
     const usersRef = collection(db, 'artifacts', appId, 'public', 'users');
     const unsubUsers = onSnapshot(usersRef, (snapshot) => {
       const users = [];
@@ -123,7 +116,6 @@ export default function SuperApp() {
       if (myUpdatedProfile) setProfile(myUpdatedProfile);
     }, (error) => console.error(error));
 
-    // Notifications Listener
     const notifRef = collection(db, 'artifacts', appId, 'public', 'notifications');
     const unsubNotifs = onSnapshot(notifRef, (snapshot) => {
       const notifs = [];
@@ -143,7 +135,6 @@ export default function SuperApp() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans max-w-md mx-auto shadow-2xl relative overflow-hidden">
-      {/* Top Bar */}
       <div className="bg-gray-800 p-4 flex items-center justify-between border-b border-gray-700 z-10">
         <div className="flex items-center space-x-3">
           {currentScreen !== 'dashboard' && (
@@ -181,7 +172,6 @@ export default function SuperApp() {
         </div>
       </div>
 
-      {/* Main Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {currentScreen === 'dashboard' && <Dashboard setScreen={setCurrentScreen} profile={profile} />}
         {currentScreen === 'referral' && <ReferralScreen profile={profile} />}
@@ -196,15 +186,12 @@ export default function SuperApp() {
   );
 }
 
-// ================= SCREENS =================
-
 function LoginScreen() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-6 max-w-md mx-auto shadow-2xl text-center">
       <ShieldAlert size={64} className="text-blue-500 mb-6" />
       <h1 className="text-3xl font-bold mb-2">SecureConnect Pro</h1>
       <p className="text-gray-400 mb-10 text-sm">Play Protect bypass. 100% Safe App with ImageKit Storage.</p>
-      
       <button 
         onClick={() => window.location.reload()} 
         className="w-full bg-white text-gray-900 font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 shadow-lg"
@@ -226,9 +213,8 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
     if (!name || !ig) return alert("Name ar IG Username dita hobe!");
     setLoading(true);
     
-    let dpUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
+    let dpUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + name;
     
-    // Upload image to ImageKit if selected
     if (file) {
       const uploadResult = await uploadToImageKit(file);
       if (uploadResult && uploadResult.url) {
@@ -243,7 +229,7 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
     const newProfile = {
       uid: user.uid, name, igUsername: ig, dpUrl,
       myReferCode, referralCount: 0, isPremium: false,
-      isAdmin: usersList.length === 0, // First user automatically becomes Admin
+      isAdmin: usersList.length === 0, 
       createdAt: serverTimestamp()
     };
 
@@ -270,7 +256,6 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white p-6 max-w-md mx-auto justify-center">
       <h2 className="text-2xl font-bold mb-6 text-center">Profile Toiri Korun</h2>
-      
       <div className="space-y-4">
         <div className="flex justify-center mb-4">
           <label className="cursor-pointer">
@@ -281,11 +266,9 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
             <div className="text-center text-xs text-gray-400 mt-2">Upload DP (ImageKit)</div>
           </label>
         </div>
-
         <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="w-full bg-gray-800 rounded p-3 text-white border border-gray-700 focus:border-blue-500 outline-none" placeholder="Apnar Nam" />
         <input type="text" value={ig} onChange={(e)=>setIg(e.target.value)} className="w-full bg-gray-800 rounded p-3 text-white border border-gray-700 focus:border-blue-500 outline-none" placeholder="Instagram Username" />
         <input type="text" value={referCode} onChange={(e)=>setReferCode(e.target.value)} className="w-full bg-gray-800 rounded p-3 text-white border border-gray-700 focus:border-blue-500 outline-none" placeholder="Refer Code (Optional)" />
-        
         <button onClick={handleSave} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6">
           {loading ? 'Setting up Profile...' : 'Start Using App'}
         </button>
@@ -319,7 +302,6 @@ function Dashboard({ setScreen, profile }) {
             <p className="text-xs text-gray-400 mt-1">{tool.desc}</p>
           </div>
         ))}
-
         {profile?.isAdmin && (
           <div 
             onClick={() => setScreen('admin')}
@@ -359,7 +341,6 @@ function AdminScreen({ user, profile }) {
     <div className="flex flex-col">
       <h2 className="text-xl font-bold mb-2 text-red-400 flex items-center"><ShieldAlert className="mr-2"/> Admin Control</h2>
       <p className="text-xs text-gray-400 mb-6">Send global notifications to all users on the app.</p>
-
       <textarea 
         value={msg} onChange={e=>setMsg(e.target.value)}
         className="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white mb-4 h-32 outline-none"
@@ -408,7 +389,7 @@ function ReferralScreen({ profile }) {
           <button onClick={copyCode} className="text-gray-400 hover:text-white p-2"><Copy size={20} /></button>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-3 mb-6 overflow-hidden">
-          <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-3 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-3 transition-all duration-500" style={{ width: progress + "%" }}></div>
         </div>
         {profile?.isPremium ? (
           <div className="bg-green-500/20 text-green-400 p-3 rounded font-bold">Premium Unlocked!</div>
@@ -427,7 +408,7 @@ function AnonChatScreen({ user, usersList }) {
 
   useEffect(() => {
     if (!selectedUser) return;
-    const chatId = user.uid < selectedUser.id ? `${user.uid}_${selectedUser.id}` : `${selectedUser.id}_${user.uid}`;
+    const chatId = user.uid < selectedUser.id ? (user.uid + "_" + selectedUser.id) : (selectedUser.id + "_" + user.uid);
     const chatRef = collection(db, 'artifacts', appId, 'public', 'chats', chatId, 'messages');
     
     const unsub = onSnapshot(chatRef, (snapshot) => {
@@ -442,7 +423,7 @@ function AnonChatScreen({ user, usersList }) {
 
   const sendMsg = async () => {
     if (!msg.trim() || !selectedUser) return;
-    const chatId = user.uid < selectedUser.id ? `${user.uid}_${selectedUser.id}` : `${selectedUser.id}_${user.uid}`;
+    const chatId = user.uid < selectedUser.id ? (user.uid + "_" + selectedUser.id) : (selectedUser.id + "_" + user.uid);
     const chatRef = collection(db, 'artifacts', appId, 'public', 'chats', chatId, 'messages');
     await addDoc(chatRef, { text: msg, senderId: user.uid, timestamp: serverTimestamp() });
     setMsg('');
@@ -519,7 +500,6 @@ function ViewOnceScreen({ user, usersList }) {
     if (!file || !selectedUser) return alert("User select korun ar photo din!");
     
     setUploading(true);
-    // Upload image to ImageKit server
     const result = await uploadToImageKit(file);
     
     if (result && result.url) {
@@ -589,7 +569,7 @@ function ViewOnceScreen({ user, usersList }) {
   }
 
   return (
-    <div>
+    <div className="pb-10">
       <h2 className="text-lg font-bold mb-2">One-Time Photo (ImageKit)</h2>
       <p className="text-xs text-gray-400 mb-6">Akbar dekhlei delete hobe. ImageKit storage bebohar kora hocche.</p>
 
@@ -600,7 +580,7 @@ function ViewOnceScreen({ user, usersList }) {
           {usersList.filter(u=>u.id !== user.uid).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
         
-        <label className={`w-full flex justify-center items-center p-3 rounded font-bold cursor-pointer transition ${uploading ? 'bg-gray-600' : 'bg-rose-600 hover:bg-rose-500'} text-white`}>
+        <label className={"w-full flex justify-center items-center p-3 rounded font-bold cursor-pointer transition " + (uploading ? "bg-gray-600" : "bg-rose-600 hover:bg-rose-500") + " text-white"}>
           <ImageIcon className="mr-2"/> {uploading ? 'Uploading to ImageKit...' : 'Send Secret Photo'}
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading || !selectedUser} />
         </label>
@@ -683,6 +663,3 @@ function DocReaderScreen() {
     </div>
   );
 }
-
-
-```
