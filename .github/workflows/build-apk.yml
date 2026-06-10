@@ -23,17 +23,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Install Dependencies
+      - name: Clear Gradle Cache to fix Jar issue
+        run: |
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.gradle/wrapper/
+
+      - name: Install Dependencies & Specific Capacitor
         run: |
           npm install
-          npm install @capacitor/cli @capacitor/core @capacitor/android
+          npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest
 
       - name: Build React App
         run: npm run build
 
-      - name: Setup Capacitor & Android
+      - name: Setup Capacitor & Android Platform
         run: |
           npx cap init "SecureConnect Pro" "com.example.aeimini" --web-dir dist
           npx cap add android
@@ -43,6 +48,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
+          ./gradlew clean
           ./gradlew assembleDebug
 
       - name: Upload APK
