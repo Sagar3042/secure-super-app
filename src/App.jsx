@@ -117,7 +117,7 @@ export default function SuperApp() {
       }
     } catch (error) {
       console.error(error);
-      alert("Native Login Field Validation Canceled.");
+      alert("Error: " + JSON.stringify(error) + " | MSG: " + error.message);
     }
     setLoading(false);
   };

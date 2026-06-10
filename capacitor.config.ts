@@ -1,0 +1,15 @@
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.sagar.secureconnect',
+  appName: 'SecureConnect Pro',
+  webDir: 'dist',
+  plugins: {
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true
+    }
+  }
+};
+export default config;
