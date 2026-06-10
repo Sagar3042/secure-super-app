@@ -67,17 +67,19 @@ jobs:
           }
           EOF
 
-      - name: Generate Secure Build Keystore
-        run: |
-          cd android
-          keytool -genkey -v -keystore release.keystore -alias securealias -keyalg RSA -keysize 2048 -validity 10000 -storepass sagar123 -keypass sagar123 -dname "CN=Sagar Paul, OU=Production, O=SagarApp, L=Barasat, S=WestBengal, C=IN"
-
       - name: Compile Secure Release APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk ../SecureConnectPro.apk
+
+      - name: Extract and Print Real APK SHA-1
+        run: |
+          echo "========================================================"
+          echo "=== COPY THIS EXACT SHA-1 TO YOUR FIREBASE CONSOLE ==="
+          keytool -printcert -jarfile SecureConnectPro.apk | grep SHA1
+          echo "========================================================"
 
       - name: Upload Signed Production App
         uses: actions/upload-artifact@v4
