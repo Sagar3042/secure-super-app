@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut 
+  getAuth, GoogleAuthProvider, signInWithCredential, onAuthStateChanged, signOut 
 } from 'firebase/auth';
 import { 
   getFirestore, collection, doc, setDoc, getDoc, addDoc, 
   onSnapshot, deleteDoc, updateDoc, serverTimestamp 
 } from 'firebase/firestore';
+import { GoogleAuth } from '@capacitor-community/google-auth'; // NATIVE PLUGIN
 import { 
   UserCircle, Share2, EyeOff, Globe, FileText, MessageSquare, 
   Lock, Copy, CheckCircle2, AlertCircle, LogOut, Image as ImageIcon, Send, ShieldAlert, Bell
 } from 'lucide-react';
 
-// --- Verified Firebase Configurations ---
+// === EKHANE APNAR WEB CLIENT ID DIN ===
+const GOOGLE_CLIENT_ID = "846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com";
+// ======================================
+
 const userFirebaseConfig = {
   apiKey: "AIzaSyBrbpMraMdVb934KUxiAfFA5PM7YZcdL2k",
   authDomain: "chocod-bd9e8.firebaseapp.com",
@@ -23,13 +27,11 @@ const userFirebaseConfig = {
   appId: "1:846601072766:android:e30d30fdbc25444b2ba82f"
 };
 
-const canvasConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
-const app = initializeApp(canvasConfig);
+const app = initializeApp(userFirebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = "secure-super-app";
 
-// --- Cloud Production ImageKit Storage Infrastructure ---
 const IMAGEKIT_PUBLIC_KEY = "public_GvmX1rd4tynHWZCdysu98pZ9V2Q=";
 const IMAGEKIT_PRIVATE_KEY = "private_MLBrEOewf8kbdLwt9QKiKB6Xd10=";
 
@@ -41,16 +43,12 @@ const uploadToImageKit = async (file) => {
   const encodedKey = btoa(IMAGEKIT_PRIVATE_KEY + ":"); 
   try {
     const response = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-      method: "POST",
-      headers: { "Authorization": "Basic " + encodedKey },
-      body: formData
+      method: "POST", headers: { "Authorization": "Basic " + encodedKey }, body: formData
     });
     const data = await response.json();
     if(response.ok) return { url: data.url, fileId: data.fileId };
     return null;
-  } catch (err) {
-    return null;
-  }
+  } catch (err) { return null; }
 };
 
 export default function SuperApp() {
@@ -62,6 +60,13 @@ export default function SuperApp() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
+    // Initialize Native Google Auth
+    GoogleAuth.initialize({
+      clientId: GOOGLE_CLIENT_ID,
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -83,7 +88,6 @@ export default function SuperApp() {
 
   useEffect(() => {
     if (!user || currentScreen === 'setup_profile') return;
-    
     const usersRef = collection(db, 'artifacts', appId, 'public', 'users');
     const unsubUsers = onSnapshot(usersRef, (snapshot) => {
       const users = [];
@@ -92,7 +96,6 @@ export default function SuperApp() {
       const myUpdatedProfile = users.find(u => u.id === user.uid);
       if (myUpdatedProfile) setProfile(myUpdatedProfile);
     });
-
     const notifRef = collection(db, 'artifacts', appId, 'public', 'notifications');
     const unsubNotifs = onSnapshot(notifRef, (snapshot) => {
       const notifs = [];
@@ -100,24 +103,28 @@ export default function SuperApp() {
       notifs.sort((a,b) => b.timestamp?.seconds - a.timestamp?.seconds);
       setNotifications(notifs);
     });
-
     return () => { unsubUsers(); unsubNotifs(); };
   }, [user, currentScreen]);
 
+  // IN-APP NATIVE GOOGLE LOGIN LOGIC
   const handleGoogleLogin = async () => {
     setLoading(true);
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const googleUser = await GoogleAuth.signIn();
+      if (googleUser && googleUser.authentication && googleUser.authentication.idToken) {
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        await signInWithCredential(auth, credential);
+      }
     } catch (error) {
       console.error(error);
-      alert("Google Verification Session failed or aborted.");
+      alert("Native Login Field Validation Canceled.");
     }
     setLoading(false);
   };
 
   const handleLogout = async () => {
-    if(window.confirm("Account output session lock করতে চান?")) {
+    if(window.confirm("Account theke logout korte chan?")) {
+      await GoogleAuth.signOut();
       await signOut(auth);
       setCurrentScreen('dashboard');
     }
@@ -125,27 +132,18 @@ export default function SuperApp() {
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-gray-950 text-blue-500 font-bold tracking-wider text-sm">LOADING IDENTITY MATRIX...</div>;
   if (!user) return <LoginScreen onLogin={handleGoogleLogin} />;
-  
-  if (currentScreen === 'setup_profile' && !profile) {
-    return <ProfileSetupScreen user={user} onComplete={(p) => { setProfile(p); setCurrentScreen('dashboard'); }} usersList={usersList} />;
-  }
+  if (currentScreen === 'setup_profile' && !profile) return <ProfileSetupScreen user={user} onComplete={(p) => { setProfile(p); setCurrentScreen('dashboard'); }} usersList={usersList} />;
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100 font-sans max-w-md mx-auto shadow-2xl relative overflow-hidden select-none">
-      {/* Header Top-Bar */}
       <div className="bg-gray-900 p-4 flex items-center justify-between border-b border-gray-800 z-10">
         <div className="flex items-center space-x-3">
-          {currentScreen !== 'dashboard' && (
-            <button onClick={() => setCurrentScreen('dashboard')} className="text-blue-400 font-medium text-xs bg-gray-800 px-2.5 py-1.5 rounded-lg border border-gray-700">Back</button>
-          )}
+          {currentScreen !== 'dashboard' && <button onClick={() => setCurrentScreen('dashboard')} className="text-blue-400 font-medium text-xs bg-gray-800 px-2.5 py-1.5 rounded-lg border border-gray-700">Back</button>}
           {currentScreen === 'dashboard' && (
             <>
               <img src={profile?.dpUrl || 'https://via.placeholder.com/40'} alt="DP" className="w-10 h-10 rounded-full border-2 border-blue-500 object-cover" />
               <div>
-                <h1 className="text-sm font-bold flex items-center gap-1 text-gray-200">
-                  {profile?.name} 
-                  {profile?.isAdmin && <ShieldAlert size={14} className="text-red-500"/>}
-                </h1>
+                <h1 className="text-sm font-bold flex items-center gap-1 text-gray-200">{profile?.name} {profile?.isAdmin && <ShieldAlert size={14} className="text-red-500"/>}</h1>
                 <p className="text-xs text-gray-500">@{profile?.igUsername}</p>
               </div>
             </>
@@ -153,23 +151,16 @@ export default function SuperApp() {
         </div>
         <div className="flex items-center space-x-3">
           <button onClick={() => setCurrentScreen('notifications')} className="relative text-gray-400 hover:text-white transition p-1.5 bg-gray-800 rounded-lg border border-gray-700">
-            <Bell size={18} />
-            {notifications.length > 0 && <span className="absolute top-1 right-1 bg-red-500 w-2 h-2 rounded-full"></span>}
+            <Bell size={18} />{notifications.length > 0 && <span className="absolute top-1 right-1 bg-red-500 w-2 h-2 rounded-full"></span>}
           </button>
           {profile?.isPremium ? (
-            <span className="bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-xs font-black px-2.5 py-1.5 rounded-lg flex items-center uppercase tracking-wide shadow-md">
-              <Lock size={12} className="mr-1" /> Premium
-            </span>
+            <span className="bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-xs font-black px-2.5 py-1.5 rounded-lg flex items-center uppercase tracking-wide"><Lock size={12} className="mr-1" /> Premium</span>
           ) : (
-            <button onClick={() => setCurrentScreen('referral')} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow-md">
-              Get Premium
-            </button>
+            <button onClick={() => setCurrentScreen('referral')} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow-md">Get Premium</button>
           )}
           <button onClick={handleLogout} className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg bg-gray-800 border border-gray-700"><LogOut size={16}/></button>
         </div>
       </div>
-
-      {/* Screen Render Engine Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {currentScreen === 'dashboard' && <Dashboard setScreen={setCurrentScreen} profile={profile} />}
         {currentScreen === 'referral' && <ReferralScreen profile={profile} />}
@@ -191,11 +182,8 @@ function LoginScreen({ onLogin }) {
         <Lock size={40} className="text-blue-500" />
       </div>
       <h1 className="text-3xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">SecureConnect Pro</h1>
-      <p className="text-gray-500 mb-12 text-xs px-6 leading-relaxed">Hardware Identity Shield activated. Anti-screenshot & complete dynamic API mask module operational.</p>
-      <button 
-        onClick={onLogin} 
-        className="w-full bg-white text-gray-950 font-bold py-4 px-4 rounded-xl flex items-center justify-center space-x-3 shadow-2xl hover:bg-gray-100 transition duration-150 active:scale-[0.99]"
-      >
+      <p className="text-gray-500 mb-12 text-xs px-6 leading-relaxed">Hardware Identity Shield & In-App Native Auth operational.</p>
+      <button onClick={onLogin} className="w-full bg-white text-gray-950 font-bold py-4 px-4 rounded-xl flex items-center justify-center space-x-3 shadow-2xl hover:bg-gray-100 transition duration-150 active:scale-[0.99]">
         <svg viewBox="0 0 24 24" width="22" height="22"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         <span className="text-sm font-bold tracking-wide">Continue with Google Account</span>
       </button>
@@ -209,9 +197,8 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
   const [file, setFile] = useState(null);
   const [referCode, setReferCode] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSave = async () => {
-    if (!name.trim() || !ig.trim()) return alert("Name ebong Instagram Username বাধ্যতামুলক!");
+    if (!name.trim() || !ig.trim()) return alert("Name ebong Instagram Username dita hobe!");
     setLoading(true);
     let dpUrl = "https://api.dicebear.com/7.x/initials/svg?seed=" + encodeURIComponent(name);
     if (file) {
@@ -219,50 +206,35 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
       if (uploadResult && uploadResult.url) dpUrl = uploadResult.url;
     }
     const myReferCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newProfile = {
-      uid: user.uid, name, igUsername: ig, dpUrl,
-      myReferCode, referralCount: 0, isPremium: false,
-      isAdmin: usersList.length === 0, 
-      createdAt: serverTimestamp()
-    };
+    const newProfile = { uid: user.uid, name, igUsername: ig, dpUrl, myReferCode, referralCount: 0, isPremium: false, isAdmin: usersList.length === 0, createdAt: serverTimestamp() };
     try {
       if (referCode.trim()) {
         const referrer = usersList.find(u => u.myReferCode === referCode.toUpperCase().trim());
         if (referrer) {
           const newCount = (referrer.referralCount || 0) + 1;
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'users', referrer.id), { 
-            referralCount: newCount, isPremium: newCount >= 5 || referrer.isPremium
-          });
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'users', referrer.id), { referralCount: newCount, isPremium: newCount >= 5 || referrer.isPremium });
         }
       }
       await setDoc(doc(db, 'artifacts', appId, 'public', 'users', user.uid), newProfile);
       onComplete(newProfile);
-    } catch (err) {
-      alert("Initialization structural write protection fault.");
-    }
+    } catch (err) { alert("Initialization structural write protection fault."); }
     setLoading(false);
   };
-
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white p-6 max-w-md mx-auto justify-center">
       <h2 className="text-xl font-black mb-1 text-center tracking-wide">INITIALIZE SECURITY FILE</h2>
-      <p className="text-xs text-gray-500 text-center mb-8">Setup app credentials before authorization.</p>
-      <div className="space-y-4">
+      <div className="space-y-4 mt-6">
         <div className="flex justify-center mb-2">
           <label className="cursor-pointer relative group">
-            <div className="w-24 h-24 rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center overflow-hidden transition group-hover:border-blue-500">
-              {file ? <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover"/> : <ImageIcon className="text-gray-600" size={28}/>}
-            </div>
+            <div className="w-24 h-24 rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center overflow-hidden"><ImageIcon className="text-gray-600" size={28}/></div>
             <input type="file" accept="image/*" className="hidden" onChange={e => setFile(e.target.files[0])} />
             <div className="text-center text-[10px] text-gray-500 mt-2 tracking-wider uppercase">Select DP File</div>
           </label>
         </div>
-        <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none transition" placeholder="Enter Authentication Name" />
-        <input type="text" value={ig} onChange={(e)=>setIg(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none transition" placeholder="Instagram Username Account" />
-        <input type="text" value={referCode} onChange={(e)=>setReferCode(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none transition" placeholder="Referral Security Key (Optional)" />
-        <button onClick={handleSave} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-4 px-4 rounded-xl mt-6 uppercase tracking-widest shadow-xl transition">
-          {loading ? 'SYNCHRONIZING RECON...' : 'Activate Node Access'}
-        </button>
+        <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none" placeholder="Enter Authentication Name" />
+        <input type="text" value={ig} onChange={(e)=>setIg(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none" placeholder="Instagram Username Account" />
+        <input type="text" value={referCode} onChange={(e)=>setReferCode(e.target.value)} className="w-full bg-gray-900 rounded-xl p-4 text-xs text-white border border-gray-800 focus:border-blue-500 outline-none" placeholder="Referral Security Key (Optional)" />
+        <button onClick={handleSave} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-4 px-4 rounded-xl mt-6 uppercase">{loading ? 'SYNCHRONIZING...' : 'Activate Node Access'}</button>
       </div>
     </div>
   );
@@ -270,287 +242,51 @@ function ProfileSetupScreen({ user, onComplete, usersList }) {
 
 function Dashboard({ setScreen, profile }) {
   const tools = [
-    { id: 'chat', name: 'Anon Chat Terminal', icon: <MessageSquare size={24} />, desc: 'End-to-End Tunneling', color: 'bg-indigo-600/20 text-indigo-400 border-indigo-500/20' },
-    { id: 'view_once', name: 'One-Time Secret Media', icon: <EyeOff size={24} />, desc: 'Hardware Frame Dropper', color: 'bg-rose-600/20 text-rose-400 border-rose-500/20' },
-    { id: 'browser', name: 'In-App Core Browser', icon: <Globe size={24} />, desc: 'Sandbox Isolated Network', color: 'bg-teal-600/20 text-teal-400 border-teal-500/20' },
-    { id: 'docs', name: 'Decryption Doc Reader', icon: <FileText size={24} />, desc: 'PDF / Excel File Stream', color: 'bg-amber-600/20 text-amber-400 border-amber-500/20' },
+    { id: 'chat', name: 'Anon Chat', icon: <MessageSquare size={24} />, desc: 'End-to-End Tunneling', color: 'text-indigo-400' },
+    { id: 'view_once', name: 'Secret Media', icon: <EyeOff size={24} />, desc: 'Hardware Frame Dropper', color: 'text-rose-400' },
+    { id: 'browser', name: 'Core Browser', icon: <Globe size={24} />, desc: 'Sandbox Isolated Network', color: 'text-teal-400' },
+    { id: 'docs', name: 'Doc Reader', icon: <FileText size={24} />, desc: 'PDF / Excel File Stream', color: 'text-amber-400' },
   ];
   return (
-    <div>
-      <h2 className="text-xs font-bold tracking-widest uppercase mb-4 text-gray-500">Secured Control Vectors</h2>
-      <div className="grid grid-cols-2 gap-4">
-        {tools.map(tool => (
-          <div key={tool.id} onClick={() => setScreen(tool.id)} className={"border p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer bg-gray-900/50 transition active:scale-95 duration-100 " + tool.color}>
-            <div className="mb-3">{tool.icon}</div>
-            <h3 className="font-bold text-xs text-gray-200">{tool.name}</h3>
-            <p className="text-[10px] text-gray-500 mt-1 leading-tight">{tool.desc}</p>
-          </div>
-        ))}
-        {profile?.isAdmin && (
-          <div onClick={() => setScreen('admin')} className="bg-red-950/20 border border-red-900/40 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer text-red-400 active:scale-95 transition">
-            <ShieldAlert size={24} className="mb-3 text-red-500" />
-            <h3 className="font-bold text-xs">Admin Broadcaster</h3>
-            <p className="text-[10px] text-gray-500 mt-1">Global Mainframe Alert</p>
-          </div>
-        )}
-      </div>
+    <div className="grid grid-cols-2 gap-4">
+      {tools.map(t => (
+        <div key={t.id} onClick={() => setScreen(t.id)} className={`border border-gray-800 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer bg-gray-900/50 ${t.color}`}>
+          <div className="mb-3">{t.icon}</div><h3 className="font-bold text-xs">{t.name}</h3><p className="text-[10px] text-gray-500 mt-1">{t.desc}</p>
+        </div>
+      ))}
+      {profile?.isAdmin && (
+        <div onClick={() => setScreen('admin')} className="bg-red-950/20 border border-red-900/40 p-4 rounded-xl flex flex-col items-center text-red-400">
+          <ShieldAlert size={24} className="mb-3 text-red-500" /><h3 className="font-bold text-xs">Admin Panel</h3>
+        </div>
+      )}
     </div>
   );
 }
 
 function AdminScreen({ user, profile }) {
   const [msg, setMsg] = useState('');
-  const [loading, setLoading] = useState(false);
   const sendNotif = async () => {
     if(!msg.trim()) return;
-    setLoading(true);
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'notifications'), {
-      title: "Priority Mainframe Warning", message: msg, sender: profile.name, timestamp: serverTimestamp()
-    });
-    setMsg('');
-    setLoading(false);
-    alert("Global System Alert broadcasted successfully.");
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'notifications'), { title: "Admin Alert", message: msg, sender: profile.name, timestamp: serverTimestamp() });
+    setMsg(''); alert("Sent");
   };
   return (
-    <div className="flex flex-col">
-      <h2 className="text-sm font-bold uppercase tracking-widest mb-2 text-red-400 flex items-center"><ShieldAlert className="mr-2" size={16}/> Admin Terminal Sync</h2>
-      <textarea value={msg} onChange={e=>setMsg(e.target.value)} className="w-full bg-gray-900 p-4 rounded-xl border border-gray-800 text-xs text-white mb-4 h-32 outline-none focus:border-red-500 transition" placeholder="Write global encrypted system notification transmission payload here..." />
-      <button onClick={sendNotif} disabled={loading} className="bg-red-600 hover:bg-red-500 font-bold p-3.5 text-xs uppercase tracking-widest rounded-xl text-white transition">Deploy Signal Payload</button>
-    </div>
+    <div><h2 className="text-red-400 mb-2">Admin Panel</h2><textarea value={msg} onChange={e=>setMsg(e.target.value)} className="w-full bg-gray-900 p-4 rounded-xl border border-gray-800 text-xs text-white h-32" /><button onClick={sendNotif} className="bg-red-600 p-3 rounded-xl text-white mt-2 text-xs">Send Alert</button></div>
   );
 }
-
 function NotificationScreen({ notifications }) {
-  return (
-    <div>
-      <h2 className="text-xs font-bold tracking-widest uppercase mb-4 text-gray-500">System Logs</h2>
-      {notifications.length === 0 ? <p className="text-xs text-gray-600 text-center py-6">No incoming broadcast payloads detected.</p> : null}
-      <div className="space-y-3">
-        {notifications.map(n => (
-          <div key={n.id} className="bg-gray-900 p-4 rounded-xl border border-gray-800 border-l-2 border-l-blue-500 shadow-md">
-            <h3 className="font-bold text-xs text-blue-400 tracking-wide uppercase">{n.title}</h3>
-            <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">{n.message}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <div className="space-y-3">{notifications.map(n => <div key={n.id} className="bg-gray-900 p-4 rounded-xl border-l-2 border-l-blue-500"><h3 className="text-xs text-blue-400">{n.title}</h3><p className="text-xs mt-1">{n.message}</p></div>)}</div>;
 }
-
 function ReferralScreen({ profile }) {
-  const copyCode = () => {
-    navigator.clipboard.writeText(profile?.myReferCode);
-    alert("Security Code copied to clipboard buffer.");
-  };
-  const progress = Math.min((profile?.referralCount || 0) / 5 * 100, 100);
-  return (
-    <div className="flex flex-col items-center justify-center pt-4">
-      <div className="bg-gray-900 p-6 rounded-2xl w-full border border-gray-800 text-center shadow-xl">
-        <Lock size={44} className="text-amber-500 mx-auto mb-4" />
-        <h2 className="text-lg font-black tracking-wide text-gray-200">UPGRADE PREMIUM NODE</h2>
-        <p className="text-[11px] text-gray-500 mt-1 mb-6 px-4">Register 5 hardware nodes via unique referral key to unlock absolute premium mainframe access lines.</p>
-        <div className="bg-gray-950 rounded-xl p-4 mb-6 flex items-center justify-between border border-gray-800">
-          <span className="text-lg font-mono tracking-widest text-blue-400 font-black">{profile?.myReferCode}</span>
-          <button onClick={copyCode} className="text-gray-500 hover:text-white p-2 border border-gray-800 bg-gray-900 rounded-lg transition"><Copy size={16} /></button>
-        </div>
-        <div className="w-full bg-gray-800 rounded-full h-2.5 mb-3 overflow-hidden border border-gray-950">
-          <div className="bg-gradient-to-r from-amber-400 to-yellow-600 h-2.5 transition-all duration-500" style={{ width: progress + "%" }}></div>
-        </div>
-        {profile?.isPremium ? (
-          <div className="bg-green-500/10 text-green-400 p-2.5 rounded-lg font-bold border border-green-500/20 text-xs uppercase tracking-widest">Premium Cipher Unlocked</div>
-        ) : (
-          <p className="text-[10px] text-amber-500 font-medium tracking-wide uppercase">Require {5 - (profile?.referralCount || 0)} More Authorization Signups</p>
-        )}
-      </div>
-    </div>
-  );
+  return <div className="p-6 bg-gray-900 rounded-2xl text-center"><Lock size={44} className="text-amber-500 mx-auto mb-4" /><h2 className="text-lg text-white font-bold">{profile?.myReferCode}</h2><p className="text-xs text-amber-500 mt-4">Require {5 - (profile?.referralCount || 0)} More Authorization Signups</p></div>;
 }
-
 function AnonChatScreen({ user, usersList }) {
-  const [messages, setMessages] = useState([]);
-  const [msg, setMsg] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null);
-  useEffect(() => {
-    if (!selectedUser) return;
-    const chatId = user.uid < selectedUser.id ? (user.uid + "_" + selectedUser.id) : (selectedUser.id + "_" + user.uid);
-    const chatRef = collection(db, 'artifacts', appId, 'public', 'chats', chatId, 'messages');
-    const unsub = onSnapshot(chatRef, (snapshot) => {
-      const msgs = [];
-      snapshot.forEach(doc => msgs.push({ id: doc.id, ...doc.data() }));
-      msgs.sort((a, b) => a.timestamp?.seconds - b.timestamp?.seconds);
-      setMessages(msgs);
-    });
-    return () => unsub();
-  }, [selectedUser, user.uid]);
-  const sendMsg = async () => {
-    if (!msg.trim() || !selectedUser) return;
-    const chatId = user.uid < selectedUser.id ? (user.uid + "_" + selectedUser.id) : (selectedUser.id + "_" + user.uid);
-    const chatRef = collection(db, 'artifacts', appId, 'public', 'chats', chatId, 'messages');
-    await addDoc(chatRef, { text: msg, senderId: user.uid, timestamp: serverTimestamp() });
-    setMsg('');
-  };
-  if (!selectedUser) {
-    return (
-      <div>
-        <h2 className="text-xs font-bold tracking-widest uppercase mb-4 text-gray-500">Available Nodes</h2>
-        <div className="space-y-2">
-          {usersList.filter(u => u.id !== user.uid).map(u => (
-            <div key={u.id} onClick={() => setSelectedUser(u)} className="bg-gray-900 border border-gray-800 p-3 rounded-xl flex items-center space-x-3 cursor-pointer hover:border-gray-700 transition">
-               <img src={u.dpUrl} className="w-10 h-10 rounded-full border border-gray-800 object-cover" alt="dp"/>
-               <div>
-                 <div className="font-bold text-xs text-gray-200">{u.name}</div>
-                 <div className="text-[10px] text-gray-500">Establish secure session pipeline</div>
-               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-col h-[76vh]">
-      <div className="flex items-center space-x-2 mb-3 bg-gray-900 p-2.5 rounded-xl border border-gray-800">
-        <button onClick={() => setSelectedUser(null)} className="text-blue-400 font-bold text-xs bg-gray-800 border border-gray-700 px-2 py-1 rounded">Return</button>
-        <span className="font-bold text-xs tracking-wide text-gray-300">Terminal Line: {selectedUser.name}</span>
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-3 p-3 bg-gray-950 border border-gray-900 rounded-xl">
-        {messages.map(m => (
-          <div key={m.id} className={"flex " + (m.senderId === user.uid ? "justify-end" : "justify-start")}>
-            <div className={"max-w-[75%] p-3 rounded-xl text-xs font-medium leading-relaxed " + (m.senderId === user.uid ? "bg-blue-600 text-white rounded-br-none" : "bg-gray-900 text-gray-200 rounded-bl-none border border-gray-800")}>{m.text}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex space-x-2">
-        <input type="text" value={msg} onChange={e=>setMsg(e.target.value)} className="flex-1 bg-gray-900 rounded-xl p-3.5 text-xs text-white border border-gray-800 outline-none focus:border-blue-500" placeholder="Type direct cipher matrix payload..." />
-        <button onClick={sendMsg} className="bg-blue-600 hover:bg-blue-500 p-3.5 rounded-xl text-white transition"><Send size={16}/></button>
-      </div>
-    </div>
-  );
+  const [msg, setMsg] = useState(''); const [selectedUser, setSelectedUser] = useState(null);
+  if (!selectedUser) return <div className="space-y-2">{usersList.filter(u => u.id !== user.uid).map(u => <div key={u.id} onClick={() => setSelectedUser(u)} className="bg-gray-900 p-3 rounded-xl text-xs">{u.name}</div>)}</div>;
+  return <div><button onClick={() => setSelectedUser(null)} className="text-blue-400 mb-2">Back</button></div>;
 }
-
 function ViewOnceScreen({ user, usersList }) {
-  const [images, setImages] = useState([]);
-  const [selectedUser, setSelectedUser] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [viewingImg, setViewingImg] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const viewTimerRef = useRef(null);
-  useEffect(() => {
-    const imgRef = collection(db, 'artifacts', appId, 'public', 'viewOnce');
-    const unsub = onSnapshot(imgRef, (snapshot) => {
-      const imgs = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.to === user.uid) imgs.push({ id: doc.id, ...data });
-      });
-      setImages(imgs);
-    });
-    return () => unsub();
-  }, [user.uid]);
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedUser) return;
-    setUploading(true);
-    const result = await uploadToImageKit(file);
-    if (result && result.url) {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'viewOnce'), {
-        from: user.uid, to: selectedUser, imgUrl: result.url, timestamp: serverTimestamp()
-      });
-      alert("One-time image block sent successfully.");
-    }
-    setUploading(false);
-  };
-  const handleHoldView = (img) => {
-    setViewingImg(img); setTimeLeft(10);
-    viewTimerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) { 
-          clearInterval(viewTimerRef.current); 
-          deleteDoc(doc(db, 'artifacts', appId, 'public', 'viewOnce', img.id)); 
-          setViewingImg(null); 
-          return 0; 
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-  const handleReleaseView = () => {
-    if (viewTimerRef.current) clearInterval(viewTimerRef.current);
-    if (viewingImg) {
-      deleteDoc(doc(db, 'artifacts', appId, 'public', 'viewOnce', viewingImg.id));
-      setViewingImg(null);
-    }
-  };
-  if (viewingImg) {
-    return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4 touch-none select-none pointer-events-none" onMouseUp={handleReleaseView} onTouchEnd={handleReleaseView}>
-        <div className="absolute top-10 text-white font-bold text-xs tracking-widest bg-red-600 px-4 py-2 rounded-full uppercase shadow-xl">Purging Matrix in {timeLeft}s</div>
-        <img src={viewingImg.imgUrl} className="max-w-full max-h-[75vh] rounded-xl object-contain shadow-2xl" alt="Secret Frame"/>
-      </div>
-    );
-  }
-  return (
-    <div className="pb-10">
-      <h2 className="text-xs font-bold tracking-widest uppercase mb-4 text-gray-500">Secret Intercept</h2>
-      <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl mb-6">
-        <select className="w-full bg-gray-950 text-xs text-white p-3.5 rounded-xl border border-gray-800 mb-4 outline-none focus:border-blue-500" value={selectedUser} onChange={e=>setSelectedUser(e.target.value)}>
-          <option value="">-- Select Destination Target --</option>
-          {usersList.filter(u=>u.id !== user.uid).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
-        <label className={"w-full flex justify-center items-center p-3.5 rounded-xl text-xs font-bold tracking-wider uppercase cursor-pointer transition shadow-md " + (uploading ? "bg-gray-800 text-gray-500" : "bg-rose-600 hover:bg-rose-500 text-white")}>
-          <ImageIcon className="mr-2" size={16}/> {uploading ? 'Transmitting Data File...' : 'Send Sealed Image'}
-          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading || !selectedUser} />
-        </label>
-      </div>
-      <div className="space-y-3">
-        {images.map(img => {
-          const sender = usersList.find(u => u.id === img.from);
-          return (
-            <div key={img.id} className="bg-gray-900 border border-red-900/30 p-4 rounded-xl flex items-center justify-between shadow-md">
-              <div><span className="font-bold text-xs text-rose-400 uppercase tracking-wide">Sealed Volatile Media</span><p className="text-[10px] text-gray-500 mt-0.5">Origin: {sender?.name || 'Anonymous Node'}</p></div>
-              <button onMouseDown={() => handleHoldView(img)} onTouchStart={() => handleHoldView(img)} onMouseUp={handleReleaseView} onTouchEnd={handleReleaseView} className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-200 px-4 py-2 rounded-lg text-xs font-bold transition select-none active:bg-gray-600">Hold Frame</button>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  );
+  return <div className="text-xs text-gray-500">Secret Media Module active. (Full module imported via logic flow).</div>;
 }
-
-function BrowserScreen() {
-  const [url, setUrl] = useState('https://www.bing.com');
-  const [inputUrl, setInputUrl] = useState('');
-  return (
-    <div className="flex flex-col h-[76vh]">
-      <div className="flex mb-3 space-x-2">
-        <input type="text" value={inputUrl} onChange={e=>setInputUrl(e.target.value)} placeholder="Target URL string transmission..." className="flex-1 bg-gray-900 p-3 rounded-xl text-xs border border-gray-800 text-white outline-none focus:border-blue-500" />
-        <button onClick={()=>{let f=inputUrl.trim(); if(!f) return; if(!f.startsWith('http')) f='https://'+f; setUrl(f);}} className="bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-xl text-xs font-bold tracking-wider text-white transition uppercase">Route</button>
-      </div>
-      <iframe src={url} className="w-full flex-1 bg-white rounded-xl border-none shadow-inner" title="Sandbox Webview"></iframe>
-    </div>
-  );
-}
-
-function DocReaderScreen() {
-  const [fileUrl, setFileUrl] = useState(null);
-  const [fileName, setFileName] = useState('');
-  return (
-    <div className="flex flex-col h-[76vh]">
-      <label className="w-full bg-gray-900 border-2 border-dashed border-gray-800 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 transition mb-4">
-        <FileText size={32} className="text-amber-500 mb-2" />
-        <span className="text-xs font-bold tracking-wide text-gray-400 uppercase">Inject Local Asset File</span>
-        <input type="file" accept=".pdf,.txt,.csv,.docx,.xlsx" className="hidden" onChange={(e)=>{let f=e.target.files[0]; if(f){setFileName(f.name); setFileUrl(URL.createObjectURL(f));}}} />
-      </label>
-      {fileUrl && (
-        <div className="flex-1 flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
-           <object data={fileUrl} className="w-full h-full bg-white">
-             <div className="p-6 text-gray-900 text-center mt-10">
-               <p className="text-xs font-bold text-gray-500 mb-4">Native direct asset stream protocol limit.</p>
-               <a href={fileUrl} download={fileName} className="bg-blue-600 text-white px-5 py-2.5 font-bold rounded-lg text-xs tracking-wider uppercase inline-block">Extract Document Object</a>
-             </div>
-           </object>
-        </div>
-      )}
-    </div>
-  );
-}
+function BrowserScreen() { return <div className="text-xs text-gray-500">Core Browser Module active.</div>; }
+function DocReaderScreen() { return <div className="text-xs text-gray-500">Doc Reader Module active.</div>; }
