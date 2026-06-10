@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies with Legacy Peer Deps
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest @codetrix-studio/capacitor-google-auth@latest --legacy-peer-deps
+          npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest --legacy-peer-deps
 
       - name: Build React App
         run: npm run build
@@ -141,3 +141,4 @@ jobs:
         with:
           name: SecureConnect-Pro-APK
           path: SecureConnectPro.apk
+
