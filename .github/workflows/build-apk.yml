@@ -116,7 +116,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=../sagar.keystore -Pandroid.injected.signing.store.password=sagar123 -Pandroid.injected.signing.key.alias=securealias -Pandroid.injected.signing.key.password=sagar123
+          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/sagar.keystore -Pandroid.injected.signing.store.password=sagar123 -Pandroid.injected.signing.key.alias=securealias -Pandroid.injected.signing.key.password=sagar123
           cp app/build/outputs/apk/debug/app-debug.apk ../SecureConnectPro.apk
 
       - name: Upload Signed Production App
