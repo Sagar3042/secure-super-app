@@ -7,7 +7,7 @@ import {
   getFirestore, collection, doc, setDoc, getDoc, addDoc, 
   onSnapshot, deleteDoc, updateDoc, serverTimestamp 
 } from 'firebase/firestore';
-import { GoogleAuth } from '@capacitor-community/google-auth'; // NATIVE PLUGIN
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth'; // NATIVE PLUGIN
 import { 
   UserCircle, Share2, EyeOff, Globe, FileText, MessageSquare, 
   Lock, Copy, CheckCircle2, AlertCircle, LogOut, Image as ImageIcon, Send, ShieldAlert, Bell
