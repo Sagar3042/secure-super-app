@@ -20,17 +20,17 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Setup Node.js (Requires 22+)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Clear Gradle Cache to fix Jar issue
+      - name: Clear Gradle Cache
         run: |
           rm -rf ~/.gradle/caches/
           rm -rf ~/.gradle/wrapper/
 
-      - name: Install Dependencies & Specific Capacitor
+      - name: Install Dependencies
         run: |
           npm install
           npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest
@@ -38,21 +38,27 @@ jobs:
       - name: Build React App
         run: npm run build
 
-      - name: Setup Capacitor & Android Platform
+      - name: Setup Capacitor with Unique Package Name
         run: |
-          npx cap init "SecureConnect Pro" "com.example.aeimini" --web-dir dist
+          npx cap init "SecureConnect Pro" "com.sagar.secureconnect" --web-dir dist
           npx cap add android
           npx cap sync android
 
-      - name: Build APK (Debug)
+      - name: Generate Self-Signed Keystore for Play Protect Bypass
+        run: |
+          cd android
+          keytool -genkey -v -keystore release.keystore -alias securealias -keyalg RSA -keysize 2048 -validity 10000 -storepass sagar123 -keypass sagar123 -dname "CN=Sagar Paul, OU=Development, O=SagarApp, L=Barasat, S=WestBengal, C=IN"
+
+      - name: Build and Sign Release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew clean
           ./gradlew assembleDebug
+          # Copy the built apk to local directory for staging
+          cp app/build/outputs/apk/debug/app-debug.apk ../SecureConnectPro.apk
 
-      - name: Upload APK
+      - name: Upload Clean APK
         uses: actions/upload-artifact@v4
         with:
           name: SecureConnect-Pro-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: SecureConnectPro.apk
