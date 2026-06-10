@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { 
   UserCircle, Share2, EyeOff, Globe, FileText, MessageSquare, 
-  Lock, Copy, CheckCircle2, AlertCircle, LogOut, Image as ImageIcon, Send, ShieldAlert, Bell, Plus, NotepadText
+  Lock, Copy, CheckCircle2, AlertCircle, LogOut, Image as ImageIcon, Send, ShieldAlert, Bell, Plus
 } from 'lucide-react';
 
 // --- Secure Encrypted Firebase Configuration Mapping ---
@@ -189,7 +189,7 @@ function LoginScreen({ onLogin }) {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-[#faf5eb] text-center p-6 border-8 border-[#ebdcb9] relative bg-[radial-gradient(#e3dac9_1px,transparent_1px)] [background-size:16px_16px]">
       <div className="w-20 h-20 bg-[#f3ebd3] border-2 border-dashed border-[#a89267] rounded-full flex items-center justify-center mb-6 shadow-md">
-        <NotepadText size={42} className="text-[#4a7cbc]" />
+        <FileText size={42} className="text-[#4a7cbc]" />
       </div>
       <h1 className="text-3xl font-black text-[#3a2b1f] tracking-tight border-b-4 border-[#e5a93c] pb-2 px-4 inline-block font-serif">SecureConnect Pro</h1>
       <p className="text-[#6b5947] mt-4 mb-12 text-xs font-mono max-w-xs leading-relaxed px-4">Complete In-App Isolated Container Model. Hardware Sandbox Matrix protection initialized.</p>
