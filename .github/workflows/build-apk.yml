@@ -44,8 +44,41 @@ jobs:
           cat << 'EOF' > android/app/src/main/res/values/strings_google.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="server_client_id">846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com</string>
+              <string name="server_client_id">APNAR_WEB_CLIENT_ID_EKHANE_DIN</string>
           </resources>
+          EOF
+
+      - name: Generate google-services.json for Firebase Auth
+        run: |
+          cat << 'EOF' > android/app/google-services.json
+          {
+            "project_info": {
+              "project_number": "846601072766",
+              "project_id": "chocod-bd9e8"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:846601072766:android:e30d30fdbc25444b2ba82f",
+                  "android_client_info": {
+                    "package_name": "com.sagar.secureconnect"
+                  }
+                },
+                "oauth_client": [
+                  {
+                    "client_id": "846601072766-6cukiaaln0s6k8lrv0o0ejgbi0vnje8j.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyBrbpMraMdVb934KUxiAfFA5PM7YZcdL2k"
+                  }
+                ]
+              }
+            ],
+            "configuration_version": "1"
+          }
           EOF
 
       - name: Sync Capacitor
