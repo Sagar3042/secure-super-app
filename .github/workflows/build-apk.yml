@@ -67,22 +67,22 @@ jobs:
           }
           EOF
 
-      - name: Compile Secure Release APK
+      - name: Display SHA-1 Fingerprint Safely
+        run: |
+          echo "=== COPY THIS EXACT SHA-1 TO YOUR FIREBASE CONSOLE ==="
+          keytool -list -v -keystore sagar.keystore -alias securealias -storepass sagar123 | grep -i sha1 || true
+          echo "========================================================"
+
+      - name: Compile Secure Release APK with Fixed Local Keystore
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=../sagar.keystore -Pandroid.injected.signing.store.password=sagar123 -Pandroid.injected.signing.key.alias=securealias -Pandroid.injected.signing.key.password=sagar123
           cp app/build/outputs/apk/debug/app-debug.apk ../SecureConnectPro.apk
-
-      - name: Extract and Print Real APK SHA-1
-        run: |
-          echo "========================================================"
-          echo "=== COPY THIS EXACT SHA-1 TO YOUR FIREBASE CONSOLE ==="
-          keytool -printcert -jarfile SecureConnectPro.apk | grep SHA1
-          echo "========================================================"
 
       - name: Upload Signed Production App
         uses: actions/upload-artifact@v4
         with:
           name: SecureConnect-Pro-APK
           path: SecureConnectPro.apk
+
